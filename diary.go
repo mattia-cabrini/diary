@@ -17,13 +17,13 @@ import (
 
 	_ "embed"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 //go:embed schema.sql
 var schema string
 
-const MAX_FILE_SIZE = 100 * 1000 * 1000
+var sqlite3conn *sqlite3.SQLiteConn
 
 var args struct {
 	Path    string
@@ -54,6 +54,10 @@ var logger struct {
 }
 
 // BEGIN UTILITY FUNCTIONS
+
+func getMaxBlobSize() int64 {
+	return int64(sqlite3conn.GetLimit(sqlite3.SQLITE_LIMIT_LENGTH))
+}
 
 func getRandomString() (s string) {
 	const a = int('a')
@@ -115,7 +119,7 @@ func sizeNorm[T int | int32 | int64](s T) string {
 	var i = 0
 
 	for sz > 1000 && i < len(molt) {
-		sz /= 1000
+		sz /= 1000.0
 		i++
 	}
 
@@ -171,7 +175,14 @@ func touch() (db *sql.DB, err error) {
 		exists = false
 	}
 
-	db, err = sql.Open("sqlite3", args.Path)
+	sql.Register("sqlite3_2", &sqlite3.SQLiteDriver{
+		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+			sqlite3conn = conn
+			return nil
+		},
+	})
+
+	db, err = sql.Open("sqlite3_2", args.Path)
 	if err == nil {
 		if !exists {
 			_, err = db.Exec(schema)
@@ -228,12 +239,16 @@ func askForAttachments(db *sql.DB, id int64) {
 	var k = bufio.NewScanner(os.Stdin)
 	var buf = make([]byte, 0)
 
-	for x := false; !x || k.Text() != ""; x = true {
+	for {
 		var errF error
 		var fp *os.File
 
 		print("Attachment: ")
 		k.Scan()
+
+		if k.Text() == "" {
+			break
+		}
 
 		var attachmentPath = k.Text()
 
@@ -249,8 +264,8 @@ func askForAttachments(db *sql.DB, id int64) {
 			continue
 		}
 
-		if stat.Size() > MAX_FILE_SIZE {
-			logger.err.Printf("file too big: max %s\n", sizeNorm(MAX_FILE_SIZE))
+		if stat.Size() > getMaxBlobSize() {
+			logger.err.Printf("file too big: max %s\n", sizeNorm(getMaxBlobSize()))
 			continue
 		}
 
@@ -275,7 +290,7 @@ func askForAttachments(db *sql.DB, id int64) {
 func cmdResume(db *sql.DB) (err error) {
 	date, _ := time.ParseInLocation(time.DateOnly, args.DateInit.Format(time.DateOnly), time.Now().Location())
 
-	rows, err := db.Query("select id, init, fin, inserted, note from entries where init >= ? and init <= ? and deleted = 0 order by init", date.Unix(), date.Add(24*time.Hour).Unix())
+	rows, err := db.Query("select id, init, fin, inserted, note from entries where init >= ? and init < ? and deleted = 0 order by init", date.Unix(), date.Add(24*time.Hour).Unix())
 	if err != nil {
 		return
 	}
