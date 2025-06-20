@@ -6,13 +6,11 @@ import (
 	"bufio"
 	"database/sql"
 	"os"
-	"time"
 
 	_ "embed"
 )
 
 func cmdAdd(db *sql.DB) (err error) {
-	var reg = time.Now()
 	var note = args.Note
 
 	if note == "" {
@@ -22,21 +20,26 @@ func cmdAdd(db *sql.DB) (err error) {
 		}
 	}
 
-	res, err := db.Exec("insert into entries (init, fin, inserted, note, deleted) values (?, ?, ?, ?, 0)", args.DateInit.Unix(), args.DateEnd.Unix(), reg.Unix(), note)
+	var entry = Entry{
+		Init: args.DateInit,
+		End:  args.DateEnd,
+		Note: note,
+	}
+
+	err = entry.Insert(db)
 	if err != nil {
 		return
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
+	if entry.Id == -1 {
 		logger.info.Println("Inserted, could not retrieve id")
 		return
-	} else {
-		logger.info.Printf("Inserted, with id #%d", id)
 	}
 
+	logger.info.Printf("Inserted, with id #%d", entry.Id)
+
 	if !args.NoAttach {
-		askForAttachments(db, id)
+		askForAttachments(db, entry.Id)
 	}
 
 	return
@@ -85,7 +88,13 @@ func askForAttachments(db *sql.DB, id int64) {
 			continue
 		}
 
-		_, errF = db.Exec("insert into attachments (name, inserted, content, entry_id) values (?, ?, ?, ?)", stat.Name(), time.Now().Unix(), buf, id)
+		var attachment = Attachment{
+			Name:    stat.Name(),
+			EntryId: id,
+			Content: buf,
+		}
+
+		errF = attachment.Insert(db)
 		if errF != nil {
 			logger.err.Printf("could not store file: %v\n", errF)
 			continue
