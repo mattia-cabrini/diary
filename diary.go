@@ -23,9 +23,12 @@ import (
 //go:embed schema.sql
 var schema string
 
+//go:embed head.html
+var headDumpDay string
+
 var sqlite3conn *sqlite3.SQLiteConn
 
-var args struct {
+type arguments struct {
 	Path    string
 	Command string
 	Help    bool
@@ -46,6 +49,8 @@ var args struct {
 	TimeInitStr   string
 	TimeEndStr    string
 }
+
+var args arguments
 
 var logger struct {
 	info *log.Logger
@@ -126,11 +131,16 @@ func sizeNorm[T int | int32 | int64](s T) string {
 	return fmt.Sprintf("%.3f %sB", sz, molt[i])
 }
 
-func printLine(n int, ch rune) {
-	for range n {
-		print(string(ch))
+func printLine(n int, ch rune, fp *os.File) {
+	if fp == nil {
+		fp = os.Stdout
 	}
-	println()
+
+	for range n {
+		fmt.Fprintf(fp, "%c", ch)
+	}
+
+	fmt.Fprintln(fp)
 }
 
 func permStrToInt(perm string) (permInt int, err error) {
@@ -157,7 +167,7 @@ func permStrToInt(perm string) (permInt int, err error) {
 
 func myerr(err error, fatal bool) {
 	if err != nil {
-		log.Println(err)
+		logger.err.Println(err)
 
 		if fatal {
 			os.Exit(1)
@@ -307,7 +317,7 @@ func cmdResume(db *sql.DB) (err error) {
 		err = rows.Scan(&idIn, &initIn, &endIn, &insertedIn, &noteIn)
 
 		n, _ := fmt.Printf("[%d] %s --> %s\n", idIn, time.Unix(initIn, 0).Format(time.DateTime), time.Unix(endIn, 0).Format(time.DateTime))
-		printLine(n, '-')
+		printLine(n, '-', os.Stdout)
 
 		fmt.Printf("%s\n", noteIn)
 
@@ -325,7 +335,7 @@ func cmdResume(db *sql.DB) (err error) {
 			err = rowsAttachments.Scan(&attIdIn, &nameIn, &lengthIn)
 
 			if attachmentCount == 0 {
-				printLine(n, '-')
+				printLine(n, '-', os.Stdout)
 				fmt.Println("Attachments:")
 			}
 
@@ -334,11 +344,94 @@ func cmdResume(db *sql.DB) (err error) {
 
 		rowsAttachments.Close()
 		if attachmentCount > 0 {
-			printLine(n, '-')
+			printLine(n, '-', os.Stdout)
 		}
 
-		println()
+		fmt.Fprintln(os.Stdout)
 	}
+
+	return
+}
+
+func cmdDumpDay(db *sql.DB) (err error) {
+	dateI, _ := time.ParseInLocation(time.DateOnly, args.DateInit.Format(time.DateOnly), time.Now().Location())
+	dateE := dateI.Add(24 * time.Hour)
+	var fp *os.File
+
+	fp, err = os.OpenFile("index.html", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(args.OutputPerm))
+	if err != nil {
+		return
+	}
+	defer fp.Close()
+
+	fmt.Fprintln(fp, "<html>")
+	fmt.Fprintf(fp, headDumpDay, dateI.Format(time.DateOnly))
+
+	rows, err := db.Query("select id, init, fin, inserted, note from entries where init >= ? and init < ? and deleted = 0 order by init", dateI.Unix(), dateE.Unix())
+	if err != nil {
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() && err == nil {
+		var idIn int64
+		var initIn int64
+		var endIn int64
+		var insertedIn int64
+		var noteIn string
+		var attachmentCount int
+
+		err = rows.Scan(&idIn, &initIn, &endIn, &insertedIn, &noteIn)
+		if err != nil {
+			return
+		}
+
+		fmt.Fprintf(fp, `<p>
+			<span class="record-id">#%d</span>
+			From %s to %s<br>
+		`, idIn, time.Unix(initIn, 0).Format(time.DateTime), time.Unix(endIn, 0).Format(time.DateTime))
+
+		fmt.Fprintf(fp, "<div>%s</div>", noteIn)
+
+		var buf []byte
+		rowsAttachments, err2 := db.Query("select id, name, length(content), content from attachments where entry_id = ? order by inserted", idIn)
+		if err2 != nil {
+			err = err2
+			return
+		}
+
+		for attachmentCount = 0; rowsAttachments.Next() && err == nil; attachmentCount++ {
+			var attIdIn int64
+			var nameIn string
+			var lengthIn int64
+
+			err = rowsAttachments.Scan(&attIdIn, &nameIn, &lengthIn, &buf)
+
+			if attachmentCount == 0 {
+				fmt.Fprintln(fp, "<table><tr><th>#</th><th>Size</th><th>Name</th></tr>")
+			}
+
+			var afp *os.File
+			afp, err = os.OpenFile(nameIn, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.FileMode(args.OutputPerm))
+			if err != nil {
+				return
+			}
+
+			afp.Write(buf)
+			clear(buf)
+			afp.Close()
+
+			fmt.Fprintf(fp, "<tr><td>%d</td><td>%s</td><td><a href=\"%s\" target=\"_blank\">%s</a></td></tr>", attIdIn, sizeNorm(lengthIn), nameIn, nameIn)
+		}
+
+		rowsAttachments.Close()
+		if attachmentCount > 0 {
+			fmt.Fprintln(fp, "</table>")
+		}
+		fmt.Fprintln(fp, "</p>")
+	}
+
+	fmt.Fprintln(fp, "</html>")
 
 	return
 }
@@ -367,6 +460,11 @@ func cmdFetch(db *sql.DB) (err error) {
 	var lengthIn int64
 	var buf []byte
 
+	if args.OutputFile == nil {
+		err = errors.New("no file provided, use -output \"-\" to print on stdout")
+		return
+	}
+
 	if args.Id < 0 {
 		err = errors.New("invalid id")
 		return
@@ -392,20 +490,30 @@ func cmdFetch(db *sql.DB) (err error) {
 // END COMMMAND FUNCTIONS
 
 func parseArgs() (err error) {
+	var wd string
+
 	flag.StringVar(&args.Path, "path", "", "diary file path")
-	flag.StringVar(&args.Command, "cmd", "", "command (add, resume, delete, fetch)")
+	flag.StringVar(&args.Command, "cmd", "", "command (add, resume, delete, fetch, dump-day)")
 	flag.StringVar(&args.Note, "note", "", "note to log into the diary")
 	flag.Int64Var(&args.Id, "id", -1, "entry id")
 	flag.BoolVar(&args.Help, "help", false, "show this menu")
 	flag.BoolVar(&args.NoAttach, "na", false, "tells the program not to ask for attachments")
-	flag.StringVar(&args.DateInitStr, "date-init", time.Now().Format(time.DateOnly), "init date for requested operation")
-	flag.StringVar(&args.DateEndStr, "date-end", "", "end date for requested operation, if empty it's set equal tu date-init")
-	flag.StringVar(&args.TimeInitStr, "time-init", time.Now().Format(time.TimeOnly), "init time for requested operation")
-	flag.StringVar(&args.TimeEndStr, "time-end", "", "end time for requested operation, if empty it's set equal tu time-init")
+	flag.StringVar(&args.DateInitStr, "di", time.Now().Format(time.DateOnly), "init date for requested operation")
+	flag.StringVar(&args.DateEndStr, "de", "", "end date for requested operation, if empty it's set equal tu date-init")
+	flag.StringVar(&args.TimeInitStr, "ti", time.Now().Format(time.TimeOnly), "init time for requested operation")
+	flag.StringVar(&args.TimeEndStr, "te", "", "end time for requested operation, if empty it's set equal tu time-init")
 	flag.StringVar(&args.OutputFileStr, "output", "", "output file path (default: stdout)")
 	flag.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
+	flag.StringVar(&wd, "wd", "", "working directory")
 
 	flag.Parse()
+
+	if wd != "" {
+		err = os.Chdir(wd)
+	}
+	if err != nil {
+		return
+	}
 
 	args.DateInit, err = time.ParseInLocation(time.DateTime, args.DateInitStr+" "+args.TimeInitStr, time.Now().Location())
 	if err != nil {
@@ -428,25 +536,31 @@ func parseArgs() (err error) {
 		return
 	}
 
-	if args.OutputFileStr == "" {
+	switch args.OutputFileStr {
+	case "-":
 		args.OutputFile = os.Stdout
-	} else {
+	case "":
+		break
+	default:
 		args.OutputFile, err = os.OpenFile(args.OutputFileStr, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(args.OutputPerm))
 	}
 
 	return
 }
 
-func main() {
-	log.SetOutput(os.Stderr)
-	log.SetFlags(0)
-	log.SetPrefix("[ERROR] ")
+func (a arguments) Clear() {
+	if a.OutputFile != nil && a.OutputFile != os.Stdout {
+		a.OutputFile.Close()
+	}
+}
 
-	logger.info = log.New(os.Stdout, "[INFO ] ", 0)
-	logger.warn = log.New(os.Stdout, "[WARN ] ", 0)
-	logger.err = log.New(os.Stderr, "[ERROR] ", 0)
+func main() {
+	logger.info = log.New(os.Stdout, "[\033[34mINFO \033[0m] ", 0)
+	logger.warn = log.New(os.Stdout, "[\033[33mWARN \033[0m] ", 0)
+	logger.err = log.New(os.Stderr, "[\033[31mERROR\033[0m] ", 0)
 
 	err := parseArgs()
+	defer args.Clear()
 	myerr(err, true)
 
 	if args.Help {
@@ -463,6 +577,8 @@ func main() {
 		err = cmdAdd(db)
 	case "resume":
 		err = cmdResume(db)
+	case "dump-day":
+		err = cmdDumpDay(db)
 	case "delete":
 		err = cmdDelete(db)
 	case "fetch":
