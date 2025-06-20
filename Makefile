@@ -1,2 +1,2 @@
 all:
-	go build -o build/diary diary.go
+	go build -o build/diary main.go

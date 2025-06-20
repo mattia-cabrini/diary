@@ -1,4 +1,4 @@
-module diary
+module github.com/mattia-cabrini/diary
 
 go 1.24.2
 

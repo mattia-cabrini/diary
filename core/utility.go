@@ -1,0 +1,228 @@
+// SPDX-License-Identifier: MIT
+
+package diary
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"math/rand/v2"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	_ "embed"
+)
+
+//go:embed res/schema.sql
+var schema string
+
+//go:embed res/head.html
+var headDumpDay string
+
+type arguments struct {
+	Path    string
+	Command string
+	Help    bool
+
+	Id         int64
+	DateInit   time.Time
+	DateEnd    time.Time
+	Note       string
+	NoAttach   bool
+	OutputFile *os.File
+	OutputPerm int
+
+	// unchecked input
+	OutputFileStr string
+	OutputPermStr string
+	DateInitStr   string
+	DateEndStr    string
+	TimeInitStr   string
+	TimeEndStr    string
+}
+
+var args arguments
+
+var logger struct {
+	info *log.Logger
+	err  *log.Logger
+	warn *log.Logger
+}
+
+func getRandomString() (s string) {
+	const a = int('a')
+	const span = int('z') - a
+
+	for range 24 {
+		x := rand.Int() % span
+		s = s + string(rune(x+a))
+	}
+
+	return s
+}
+
+func readAllFileContent(path string) (text string, err error) {
+	fp, err := os.OpenFile(path, os.O_RDONLY, 0444)
+
+	if err != nil {
+		return
+	}
+
+	var sb = strings.Builder{}
+	var buf = make([]byte, 65536)
+	var n = -1
+
+	for n, err = fp.Read(buf); err == nil && n != 0; n, err = fp.Read(buf) {
+		sb.Write(buf)
+	}
+
+	if err.Error() == "EOF" {
+		err = nil
+	}
+
+	text = sb.String()
+	return
+}
+
+func editor() (text string, err error) {
+	fileName := "diary_" + getRandomString()
+	cmd := exec.Command("vim", fileName)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+
+	err = cmd.Run()
+	if err == nil {
+		text, err = readAllFileContent(fileName)
+		err1 := os.Remove(fileName)
+		if err1 != nil {
+			logger.err.Printf("could not remove temp file: %s", fileName)
+		}
+	}
+
+	return
+}
+
+var molt = []string{"", "k", "M", "G"}
+
+func sizeNorm[T int | int32 | int64](s T) string {
+	var sz = float64(s)
+	var i = 0
+
+	for sz > 1000 && i < len(molt) {
+		sz /= 1000.0
+		i++
+	}
+
+	return fmt.Sprintf("%.3f %sB", sz, molt[i])
+}
+
+func printLine(n int, ch rune, fp *os.File) {
+	if fp == nil {
+		fp = os.Stdout
+	}
+
+	for range n {
+		fmt.Fprintf(fp, "%c", ch)
+	}
+
+	fmt.Fprintln(fp)
+}
+
+func permStrToInt(perm string) (permInt int, err error) {
+	const v0 = int('0')
+
+	if len(perm) != 3 {
+		err = fmt.Errorf("invalid permissions: \"%s\"", perm)
+		return
+	}
+
+	for i, rx := range perm {
+		if rxInt := int(rx); rxInt >= v0 && rxInt <= int('9') {
+			permInt += rxInt - v0
+			permInt *= 8 // octal shift
+		} else {
+			err = fmt.Errorf("invalid permissions, char '%s' is not allawed", string(perm[i]))
+			return
+		}
+	}
+
+	permInt /= 8
+	return
+}
+
+func myerr(err error, fatal bool) {
+	if err != nil {
+		logger.err.Println(err)
+
+		if fatal {
+			os.Exit(1)
+		}
+	}
+}
+
+func parseArgs() (err error) {
+	var wd string
+
+	flag.StringVar(&args.Path, "path", "", "diary file path")
+	flag.StringVar(&args.Command, "cmd", "", "command (add, resume, delete, fetch, dump-day)")
+	flag.StringVar(&args.Note, "note", "", "note to log into the diary")
+	flag.Int64Var(&args.Id, "id", -1, "entry id")
+	flag.BoolVar(&args.Help, "help", false, "show this menu")
+	flag.BoolVar(&args.NoAttach, "na", false, "tells the program not to ask for attachments")
+	flag.StringVar(&args.DateInitStr, "di", time.Now().Format(time.DateOnly), "init date for requested operation")
+	flag.StringVar(&args.DateEndStr, "de", "", "end date for requested operation, if empty it's set equal tu date-init")
+	flag.StringVar(&args.TimeInitStr, "ti", time.Now().Format(time.TimeOnly), "init time for requested operation")
+	flag.StringVar(&args.TimeEndStr, "te", "", "end time for requested operation, if empty it's set equal tu time-init")
+	flag.StringVar(&args.OutputFileStr, "output", "", "output file path (default: stdout)")
+	flag.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
+	flag.StringVar(&wd, "wd", "", "working directory")
+
+	flag.Parse()
+
+	if wd != "" {
+		err = os.Chdir(wd)
+	}
+	if err != nil {
+		return
+	}
+
+	args.DateInit, err = time.ParseInLocation(time.DateTime, args.DateInitStr+" "+args.TimeInitStr, time.Now().Location())
+	if err != nil {
+		return fmt.Errorf("datetime init: %s", err.Error())
+	}
+
+	if args.DateEndStr == "" {
+		args.DateEndStr = args.DateInitStr
+	}
+	if args.TimeEndStr == "" {
+		args.TimeEndStr = args.TimeInitStr
+	}
+	args.DateEnd, err = time.ParseInLocation(time.DateTime, args.DateEndStr+" "+args.TimeEndStr, time.Now().Location())
+	if err != nil {
+		return fmt.Errorf("datetime end: %s", err.Error())
+	}
+
+	args.OutputPerm, err = permStrToInt(args.OutputPermStr)
+	if err != nil {
+		return
+	}
+
+	switch args.OutputFileStr {
+	case "-":
+		args.OutputFile = os.Stdout
+	case "":
+		break
+	default:
+		args.OutputFile, err = os.OpenFile(args.OutputFileStr, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(args.OutputPerm))
+	}
+
+	return
+}
+
+func (a arguments) Clear() {
+	if a.OutputFile != nil && a.OutputFile != os.Stdout {
+		a.OutputFile.Close()
+	}
+}
