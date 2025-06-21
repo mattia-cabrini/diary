@@ -22,6 +22,7 @@ type arguments struct {
 	Path    string
 	Command string
 	Help    bool
+	Verbose bool
 
 	Id         int64
 	DateInit   time.Time
@@ -175,6 +176,7 @@ func parseArgs() (err error) {
 	flag.StringVar(&args.OutputFileStr, "output", "", "output file path (default: stdout)")
 	flag.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
 	flag.StringVar(&wd, "wd", "", "working directory")
+	flag.BoolVar(&args.Verbose, "v", false, "verbose info")
 
 	flag.Parse()
 

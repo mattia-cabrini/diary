@@ -20,6 +20,12 @@ func Run() {
 	defer args.Clear()
 	myerr(err, true)
 
+	if !args.Verbose {
+		fp, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0400)
+		logger.info = log.New(fp, "[\033[34mINFO \033[0m] ", 0)
+		defer fp.Close()
+	}
+
 	if args.Help {
 		flag.Usage()
 		os.Exit(0)
