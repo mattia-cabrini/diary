@@ -51,3 +51,23 @@ func touch() (db *sql.DB, err error) {
 
 	return
 }
+
+func querySingleInt64Array(db *sql.DB, query string, params ...any) (res []int64, err error) {
+	var temp int64
+
+	rows, err := db.Query(query, params...)
+
+	if err == nil {
+		defer rows.Close()
+
+		for err == nil && rows.Next() {
+			err = rows.Scan(&temp)
+
+			if err == nil {
+				res = append(res, temp)
+			}
+		}
+	}
+
+	return
+}

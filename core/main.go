@@ -36,6 +36,8 @@ func Run() {
 		err = cmdResume(db)
 	case "dump-day":
 		err = cmdDumpDay(db)
+	case "dump":
+		err = cmdDump(db)
 	case "delete":
 		err = cmdDelete(db)
 	case "fetch":
