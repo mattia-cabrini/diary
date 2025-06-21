@@ -65,9 +65,11 @@ func (e *Entry) Insert(db *sql.DB) (err error) {
 func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 	var attachmentCount int
 
+	logger.info.Printf("Entry #%d\n", e.Id)
+
 	fmt.Fprintf(fp, `<p>
 			<span class="record-id">#%d</span>
-			From %s to %s<br>
+			<span class="time">From %s to %s</span><br>
 		`, e.Id, e.Init.Format(time.DateTime), e.End.Format(time.DateTime))
 
 	noteHtml := strings.Replace(e.Note, "\n", "<br>", -1)
@@ -79,12 +81,14 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 	}
 	defer rows.Close()
 
-	for attachmentCount = 0; rows.Next() && err == nil; attachmentCount++ {
+	for attachmentCount = 0; rows.Next(); attachmentCount++ {
 		var attachment Attachment
 		attachment, err = CreateAttachmentByScan(rows)
-		if err == nil {
+		if err != nil {
 			return
 		}
+
+		logger.info.Printf("Attachment #%d\n", e.Id)
 
 		if attachmentCount == 0 {
 			fmt.Fprintln(fp, "<table><tr><th>#</th><th>Size</th><th>Name</th></tr>")
@@ -113,7 +117,7 @@ func (e *Entry) FPrintResume(db *sql.DB, fp *os.File) (n int, err error) {
 	var attachmentCount int
 
 	n, _ = fmt.Fprintf(fp, "[%d] %s --> %s\n", e.Id, e.Init.Format(time.DateTime), e.End.Format(time.DateTime))
-	printLine(n, '-', os.Stdout)
+	printLine(n, '-', fp)
 	fmt.Fprintf(fp, "%s\n", e.Note)
 
 	if db == nil {
@@ -133,16 +137,16 @@ func (e *Entry) FPrintResume(db *sql.DB, fp *os.File) (n int, err error) {
 		err = rows.Scan(&attIdIn, &nameIn, &lengthIn)
 
 		if attachmentCount == 0 {
-			printLine(n, '-', os.Stdout)
-			fmt.Println("Attachments:")
+			printLine(n, '-', fp)
+			fmt.Fprintln(fp, "Attachments:")
 		}
 
-		fmt.Printf("[%d] %s (%s)\n", attIdIn, nameIn, sizeNorm(lengthIn))
+		fmt.Fprintf(fp, "[%d] %s (%s)\n", attIdIn, nameIn, sizeNorm(lengthIn))
 	}
 
 	rows.Close()
 	if attachmentCount > 0 {
-		printLine(n, '-', os.Stdout)
+		printLine(n, '-', fp)
 	}
 
 	return

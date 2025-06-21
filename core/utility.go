@@ -18,9 +18,6 @@ import (
 //go:embed res/schema.sql
 var schema string
 
-//go:embed res/head.html
-var headDumpDay string
-
 type arguments struct {
 	Path    string
 	Command string

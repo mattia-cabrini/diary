@@ -11,6 +11,9 @@ import (
 	_ "embed"
 )
 
+//go:embed res/head_dump_day.html
+var headDumpDay string
+
 func cmdDumpDay(db *sql.DB) (err error) {
 	dateI, _ := time.ParseInLocation(time.DateOnly, args.DateInit.Format(time.DateOnly), time.Now().Location())
 	dateE := dateI.Add(24 * time.Hour)
@@ -39,7 +42,6 @@ func cmdDumpDay(db *sql.DB) (err error) {
 			return
 		}
 
-		logger.info.Printf("Entry #%d\n", entry.Id)
 		err = entry.FPrintDumpDay(fp, db)
 		if err != nil {
 			logger.err.Println(err)
