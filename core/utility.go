@@ -3,6 +3,7 @@
 package diary
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -23,6 +24,7 @@ type arguments struct {
 	Command string
 	Help    bool
 	Verbose bool
+	Force   bool
 
 	Id         int64
 	DateInit   time.Time
@@ -177,8 +179,13 @@ func parseArgs() (err error) {
 	flag.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
 	flag.StringVar(&wd, "wd", "", "working directory")
 	flag.BoolVar(&args.Verbose, "v", false, "verbose info")
+	flag.BoolVar(&args.Force, "f", false, "force")
 
 	flag.Parse()
+
+	if args.Force {
+		logger.warn.Println("Using -f")
+	}
 
 	if wd != "" {
 		err = os.Chdir(wd)
@@ -224,4 +231,66 @@ func (a arguments) Clear() {
 	if a.OutputFile != nil && a.OutputFile != os.Stdout {
 		a.OutputFile.Close()
 	}
+}
+
+func rmR(path string, onlyChildren bool) (err error) {
+	var ddee []os.DirEntry
+	var stat os.FileInfo
+
+	stat, err = os.Stat(path)
+
+	if os.IsNotExist(err) {
+		err = nil
+		return
+	}
+
+	if err == nil && stat.IsDir() {
+
+		ddee, err = os.ReadDir(path)
+		if err == nil {
+			for _, dex := range ddee {
+				err = rmR(path+"/"+dex.Name(), false)
+
+				if err != nil {
+					break
+				}
+			}
+		}
+	}
+
+	if err == nil && !onlyChildren {
+		if stat.IsDir() {
+			logger.info.Printf("Deleting directory \"%s\"", path)
+		} else {
+			logger.info.Printf("Deleting regular file \"%s\"", path)
+		}
+
+		err = os.Remove(path)
+	}
+
+	return
+}
+
+func createDirectoryIfNE(dir string) error {
+	var ddee []os.DirEntry
+
+	stat, err := os.Stat(dir)
+	if err == nil {
+		if !stat.IsDir() {
+			err = errors.New(dir + " is not a directory")
+		}
+
+		if err == nil {
+			ddee, err = os.ReadDir(dir)
+
+			if len(ddee) > 0 {
+				err = errors.New(dir + " not empty")
+			}
+		}
+	} else if os.IsNotExist(err) {
+		err = os.Mkdir(dir, os.FileMode(args.OutputPerm|0100))
+		logger.info.Printf("created directory %s", dir)
+	}
+
+	return err
 }

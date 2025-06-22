@@ -73,7 +73,7 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 		`, e.Id, e.Init.Format(time.DateTime), e.End.Format(time.DateTime))
 
 	noteHtml := strings.Replace(e.Note, "\n", "<br>", -1)
-	fmt.Fprintf(fp, "<div>%s</div>", noteHtml)
+	fmt.Fprintf(fp, "%s", noteHtml)
 
 	rows, err := db.Query(QUERY_ATTACHMENT_ALL+" where entry_id = ? order by inserted", e.Id)
 	if err != nil {
@@ -109,7 +109,9 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 	if attachmentCount > 0 {
 		fmt.Fprintln(fp, "</table>")
 	}
-	fmt.Fprintln(fp, "</p>")
+
+	fmt.Fprintln(fp, "</p><hr>")
+
 	return
 }
 

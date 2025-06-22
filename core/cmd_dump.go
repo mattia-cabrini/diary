@@ -20,12 +20,20 @@ func cmdDump(db *sql.DB) (err error) {
 	for _, yx := range years {
 		dir := fmt.Sprintf("%d", yx)
 
-		// | 100 at least the user should be able to x
-		err = os.Mkdir(dir, os.FileMode(args.OutputPerm|100))
+		if args.Force {
+			err = rmR(dir, true)
+		}
 
 		if err == nil {
-			logger.info.Printf("created directory %s", dir)
+			err = createDirectoryIfNE(dir)
+		}
+
+		if err == nil {
 			err = dumpSingleYear(db, yx, dir)
+		}
+
+		if err != nil {
+			break
 		}
 	}
 
@@ -38,12 +46,14 @@ func dumpSingleYear(db *sql.DB, year int64, dir string) (err error) {
 	for _, mx := range months {
 		dir = fmt.Sprintf("%s/%02d", dir, mx)
 
-		// | 100 at least the user should be able to x
-		err = os.Mkdir(dir, os.FileMode(args.OutputPerm|100))
+		err = createDirectoryIfNE(dir)
 
 		if err == nil {
-			logger.info.Printf("created directory %s", dir)
 			err = dumpSingleMonth(db, year, mx, dir)
+		}
+
+		if err != nil {
+			break
 		}
 	}
 
@@ -56,12 +66,14 @@ func dumpSingleMonth(db *sql.DB, year int64, month int64, dir string) (err error
 	for _, dx := range days {
 		var dirX = fmt.Sprintf("%s/%-2d", dir, dx)
 
-		// | 100 at least the user should be able to x
-		err = os.Mkdir(dirX, os.FileMode(args.OutputPerm|100))
+		err = createDirectoryIfNE(dirX)
 
 		if err == nil {
-			logger.info.Printf("created directory %s", dirX)
 			err = dumpSingleDay(db, year, month, dx, dirX)
+		}
+
+		if err != nil {
+			break
 		}
 	}
 
