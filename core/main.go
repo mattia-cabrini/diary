@@ -12,8 +12,8 @@ import (
 )
 
 func Run() {
-	logger.info = log.New(os.Stdout, "[\033[34mINFO \033[0m] ", 0)
-	logger.warn = log.New(os.Stdout, "[\033[33mWARN \033[0m] ", 0)
+	logger.info = log.New(os.Stderr, "[\033[34mINFO \033[0m] ", 0)
+	logger.warn = log.New(os.Stderr, "[\033[33mWARN \033[0m] ", 0)
 	logger.err = log.New(os.Stderr, "[\033[31mERROR\033[0m] ", 0)
 
 	err := parseArgs()

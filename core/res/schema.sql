@@ -21,4 +21,11 @@ CREATE TABLE attachments (
     FOREIGN KEY(entry_id) REFERENCES entries(id)
 );
 
+/* To manually log inconsistencies due to tests or errors */
+CREATE TABLE anomalies (
+    inserted INTEGER,
+    note TEXT
+);
+
+
 COMMIT;
