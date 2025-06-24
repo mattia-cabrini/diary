@@ -3,7 +3,6 @@
 package diary
 
 import (
-	"flag"
 	"log"
 	"os"
 	"strings"
@@ -11,24 +10,30 @@ import (
 	_ "embed"
 )
 
+//go:embed res/help.txt
+var HELP_PAGE string
+
+var stdnull *os.File
+
 func Run() {
 	logger.info = log.New(os.Stderr, "[\033[34mINFO \033[0m] ", 0)
 	logger.warn = log.New(os.Stderr, "[\033[33mWARN \033[0m] ", 0)
 	logger.err = log.New(os.Stderr, "[\033[31mERROR\033[0m] ", 0)
 
+	stdnull, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0400)
+	defer stdnull.Close()
+
 	err := parseArgs()
 	defer args.Clear()
 	myerr(err, true)
 
-	if !args.Verbose {
-		fp, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0400)
-		logger.info = log.New(fp, "[\033[34mINFO \033[0m] ", 0)
-		defer fp.Close()
+	if args.Help {
+		print(HELP_PAGE)
+		os.Exit(0)
 	}
 
-	if args.Help {
-		flag.Usage()
-		os.Exit(0)
+	if !args.Verbose {
+		logger.info = log.New(stdnull, "[\033[34mINFO \033[0m] ", 0)
 	}
 
 	db, err := touch()
@@ -48,6 +53,8 @@ func Run() {
 		err = cmdDelete(db)
 	case "fetch":
 		err = cmdFetch(db)
+	case "license":
+		err = cmdLicense(db)
 	default:
 		logger.err.Printf("invalid command: %s", args.Command)
 	}

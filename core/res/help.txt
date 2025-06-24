@@ -1,0 +1,125 @@
+Usage:
+
+diary -path /path/to/db -cmd command [-flag]... [-var [value]]...
+
+Commands: -cmd
+
+A command allows to carry out an operation.
+Each command depends on a set of variables.
+Commands are NOT case sensitive.
+
+    ADD       
+    Add an entry. Technically there is no mandatory variable: if no variable is
+    provided, VIM is opened to write a note. The note is recorded after exiting
+    VIM. After the note is recorded the user is prompted for attachments. Leave
+    blank and press ENTER to exit diary.
+
+    Optional variables: date-init, date-end, time-init, time-end, note, na
+    
+    RESUME
+    Show all entry for a specific day.
+
+    Optional variables: date-init
+    
+    DELETE    
+    Delete the attachment with ID equals to variable id.
+
+    Mandatory variables: id, output
+
+    FETCH     
+    Fetch the attachment with ID equals to variable id.
+
+    Mandatory variables: id, output, operm
+
+    DUMP-DAY  
+    Dump all entries and attachments for a day in an HTML page.
+    The page name will be index.html.
+
+    Optional variables: date-init, operm
+    
+    DUMP      
+    Dump all entries and attachments in the form of a simple website.
+    The output will consist of a directory for each year containing a directory
+    for each month containing a directory for each day.
+    Each day' directory will contain the same output provided by DUMP-DAY for 
+    that day.
+    No empty directory is produced.
+
+    Optional variables: operm
+
+    LICENSE   
+    Show the license
+    
+    HELP      
+    Show this page
+
+Variables
+
+Variables are presented in the form
+    <common name> -<flag name>
+    description...
+
+A non boolean variable can be specified using the flag name followed by a space
+and then a value. For example:
+    -di 2025-06-24
+
+A boolean variable is false unless specified. To specify a boolean variable 
+there is no need for value. For example:
+    -na
+will set na to true.
+
+    date-init -di
+    Initial date in the format YYYY-MM-DD.
+    Default value: today.
+
+    time-init -ti
+    Initial time in the format HH:mm:SS.
+    Default value: now.
+
+    date-end -de
+    Initial date in the format YYYY-MM-DD.
+    Default value: if not specified it is set to the same value as 
+    date-init.
+
+    time-end -te
+    Initial time in the format HH:mm:SS.
+    Default value: if not specified it is set to the same value as 
+    time-init.
+
+    output   -output
+    Path to the output file.
+    Default value: none.
+    Special values: if set to "-" the output will be stdout.
+
+    operm    -operm
+    The permission for the output file.
+    Default value: 660.
+    
+    id       -id
+    Id: its meaning varies based on the command.
+    Default value: -1, which is not valid.
+
+    note     -note
+    Inline note to avoid opening the editor.
+    Default value: none.
+
+    na       -na (boolean)
+    Tells the diary not to prompt the user for attachments.
+    Default value: false.
+
+General Flags
+
+    help     -h or -help (boolean)
+    Show this page.
+
+    wd       -wd
+    Change the working directory:
+    Default value: current directory.
+
+    verbose  -v (boolean)
+    Shows verbose output.
+    Default value: false.
+
+    force    -f (boolean)
+    Force the use of the output path. 
+    Default value: false.

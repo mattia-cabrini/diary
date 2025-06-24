@@ -165,23 +165,44 @@ func myerr(err error, fatal bool) {
 func parseArgs() (err error) {
 	var wd string
 
-	flag.StringVar(&args.Path, "path", "", "diary file path")
-	flag.StringVar(&args.Command, "cmd", "", "command (add, resume, delete, fetch, dump-day)")
-	flag.StringVar(&args.Note, "note", "", "note to log into the diary")
-	flag.Int64Var(&args.Id, "id", -1, "entry id")
-	flag.BoolVar(&args.Help, "help", false, "show this menu")
-	flag.BoolVar(&args.NoAttach, "na", false, "tells the program not to ask for attachments")
-	flag.StringVar(&args.DateInitStr, "di", time.Now().Format(time.DateOnly), "init date for requested operation")
-	flag.StringVar(&args.DateEndStr, "de", "", "end date for requested operation, if empty it's set equal tu date-init")
-	flag.StringVar(&args.TimeInitStr, "ti", time.Now().Format(time.TimeOnly), "init time for requested operation")
-	flag.StringVar(&args.TimeEndStr, "te", "", "end time for requested operation, if empty it's set equal tu time-init")
-	flag.StringVar(&args.OutputFileStr, "output", "", "output file path (default: stdout)")
-	flag.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
-	flag.StringVar(&wd, "wd", "", "working directory")
-	flag.BoolVar(&args.Verbose, "v", false, "verbose info")
-	flag.BoolVar(&args.Force, "f", false, "force")
+	f := flag.NewFlagSet("usage", flag.ContinueOnError)
 
-	flag.Parse()
+	f.StringVar(&args.Path, "path", "", "diary file path")
+	f.StringVar(&args.Command, "cmd", "", "command (add, resume, delete, fetch, dump-day, dump, license)")
+	f.StringVar(&args.Note, "note", "", "note to log into the diary")
+	f.Int64Var(&args.Id, "id", -1, "entry id")
+	f.BoolVar(&args.Help, "help", false, "show this menu")
+	f.BoolVar(&args.NoAttach, "na", false, "tells the program not to ask for attachments")
+	f.StringVar(&args.DateInitStr, "di", time.Now().Format(time.DateOnly), "init date for requested operation")
+	f.StringVar(&args.DateEndStr, "de", "", "end date for requested operation, if empty it's set equal tu date-init")
+	f.StringVar(&args.TimeInitStr, "ti", time.Now().Format(time.TimeOnly), "init time for requested operation")
+	f.StringVar(&args.TimeEndStr, "te", "", "end time for requested operation, if empty it's set equal tu time-init")
+	f.StringVar(&args.OutputFileStr, "output", "", "output file path (default: stdout)")
+	f.StringVar(&args.OutputPermStr, "operm", "660", "output file path permission")
+	f.StringVar(&wd, "wd", "", "working directory")
+	f.BoolVar(&args.Verbose, "v", false, "verbose info")
+	f.BoolVar(&args.Force, "f", false, "force")
+
+	out := f.Output()
+	f.SetOutput(stdnull)
+	defer func() {
+		f.SetOutput(out)
+	}()
+
+	err = f.Parse(os.Args[1:])
+	if err != nil {
+		if err == flag.ErrHelp {
+			err = nil
+			args.Help = true
+			return
+		}
+		return
+	}
+
+	if args.Command == "help" {
+		args.Help = true
+		return
+	}
 
 	if args.Force {
 		logger.warn.Println("Using -f")
