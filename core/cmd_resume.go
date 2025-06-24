@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-
-	_ "embed"
 )
 
 func cmdResume(db *sql.DB) (err error) {

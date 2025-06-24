@@ -5,8 +5,6 @@ package diary
 import (
 	"database/sql"
 	"errors"
-
-	_ "embed"
 )
 
 func cmdFetch(db *sql.DB) (err error) {

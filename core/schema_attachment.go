@@ -5,8 +5,6 @@ package diary
 import (
 	"database/sql"
 	"time"
-
-	_ "embed"
 )
 
 const QUERY_ATTACHMENT_ALL = "select id, name, inserted, entry_id, content from attachments"

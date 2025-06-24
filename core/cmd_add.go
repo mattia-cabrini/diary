@@ -6,8 +6,6 @@ import (
 	"bufio"
 	"database/sql"
 	"os"
-
-	_ "embed"
 )
 
 func cmdAdd(db *sql.DB) (err error) {

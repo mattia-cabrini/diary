@@ -5,8 +5,6 @@ package diary
 import (
 	"database/sql"
 	"errors"
-
-	_ "embed"
 )
 
 func cmdDelete(db *sql.DB) (err error) {

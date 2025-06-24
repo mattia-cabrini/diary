@@ -6,8 +6,6 @@ import (
 	"database/sql"
 	"os"
 
-	_ "embed"
-
 	"github.com/mattn/go-sqlite3"
 )
 

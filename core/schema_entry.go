@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	_ "embed"
 )
 
 const QUERY_ENTRY_ALL = "select id, init, fin, inserted, note, deleted from entries"
