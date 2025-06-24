@@ -55,6 +55,8 @@ func Run() {
 		err = cmdFetch(db)
 	case "license":
 		err = cmdLicense(db)
+	case "info":
+		err = cmdInfo(db)
 	default:
 		logger.err.Printf("invalid command: %s", args.Command)
 	}

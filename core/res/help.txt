@@ -47,6 +47,9 @@ Commands are NOT case sensitive.
 
     Optional variables: operm
 
+    INFO
+    Show statistics about the database.
+
     LICENSE   
     Show the license
     
