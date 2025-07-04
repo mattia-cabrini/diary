@@ -3,6 +3,7 @@
 package diary
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -28,7 +29,7 @@ func Run() {
 	myerr(err, true)
 
 	if args.Help {
-		print(HELP_PAGE)
+		fmt.Print(HELP_PAGE)
 		os.Exit(0)
 	}
 
@@ -57,6 +58,8 @@ func Run() {
 		err = cmdLicense(db)
 	case "info":
 		err = cmdInfo(db)
+	case "add-attach":
+		err = cmdAddAttach(db)
 	default:
 		logger.err.Printf("invalid command: %s", args.Command)
 	}

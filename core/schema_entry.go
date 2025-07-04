@@ -42,6 +42,20 @@ func CreateEntryByScan(rows *sql.Rows) (e Entry, err error) {
 	return
 }
 
+func RetrieveEntryByID(db *sql.DB, id int64) (e Entry, err error) {
+	rows, err := db.Query(QUERY_ENTRY_ALL+" where id = ?", id)
+
+	if err == nil {
+		if rows.Next() {
+			e, err = CreateEntryByScan(rows)
+		} else {
+			err = NOT_FOUND
+		}
+	}
+
+	return
+}
+
 func (e *Entry) Insert(db *sql.DB) (err error) {
 	e.Inserted = time.Now()
 

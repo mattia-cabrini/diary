@@ -51,6 +51,10 @@ var logger struct {
 	warn *log.Logger
 }
 
+var (
+	NOT_FOUND = errors.New("not found")
+)
+
 func getRandomString() (s string) {
 	const a = int('a')
 	const span = int('z') - a

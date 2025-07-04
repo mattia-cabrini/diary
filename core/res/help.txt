@@ -1,14 +1,17 @@
-Usage:
+Usage
+=====
 
 diary -path /path/to/db -cmd command [-flag]... [-var [value]]...
 
 Commands: -cmd
+==============
 
 A command allows to carry out an operation.
 Each command depends on a set of variables.
 Commands are NOT case sensitive.
 
     ADD       
+    ---
     Add an entry. Technically there is no mandatory variable: if no variable is
     provided, VIM is opened to write a note. The note is recorded after exiting
     VIM. After the note is recorded the user is prompted for attachments. Leave
@@ -16,28 +19,42 @@ Commands are NOT case sensitive.
 
     Optional variables: date-init, date-end, time-init, time-end, note, na
     
+    ADD-ATTACH
+    ----------       
+    Add an attachment to an entry. The user is prompted for attachments. Leave 
+    blank and press ENTER to exit diary.
+
+    The entry is specified using the variable "id". 
+
+    Mandatory variables: id
+    
     RESUME
+    ------
     Show all entry for a specific day.
 
     Optional variables: date-init
     
-    DELETE    
+    DELETE
+    ------    
     Delete the attachment with ID equals to variable id.
 
     Mandatory variables: id, output
 
-    FETCH     
+    FETCH
+    -----    
     Fetch the attachment with ID equals to variable id.
 
     Mandatory variables: id, output, operm
 
-    DUMP-DAY  
+    DUMP-DAY
+    --------  
     Dump all entries and attachments for a day in an HTML page.
     The page name will be index.html.
 
     Optional variables: date-init, operm
     
-    DUMP      
+    DUMP
+    ----      
     Dump all entries and attachments in the form of a simple website.
     The output will consist of a directory for each year containing a directory
     for each month containing a directory for each day.
@@ -48,15 +65,19 @@ Commands are NOT case sensitive.
     Optional variables: operm
 
     INFO
+    ----
     Show statistics about the database.
 
-    LICENSE   
+    LICENSE
+    -------   
     Show the license
     
-    HELP      
+    HELP
+    ----   
     Show this page
 
 Variables
+=========
 
 Variables are presented in the form
     <common name> -<flag name>
@@ -111,6 +132,7 @@ will set na to true.
     Default value: false.
 
 General Flags
+=============
 
     help     -h or -help (boolean)
     Show this page.
