@@ -44,12 +44,12 @@ func dumpSingleYear(db *sql.DB, year int64, dir string) (err error) {
 	months, err := querySingleInt64Array(db, "SELECT DISTINCT strftime('%m', datetime(init, 'unixepoch')) from entries where deleted = 0 AND strftime('%Y', datetime(init, 'unixepoch')) = cast(? as TEXT)", year)
 
 	for _, mx := range months {
-		dir = fmt.Sprintf("%s/%02d", dir, mx)
+		var dirX = fmt.Sprintf("%s/%02d", dir, mx)
 
-		err = createDirectoryIfNE(dir)
+		err = createDirectoryIfNE(dirX)
 
 		if err == nil {
-			err = dumpSingleMonth(db, year, mx, dir)
+			err = dumpSingleMonth(db, year, mx, dirX)
 		}
 
 		if err != nil {
