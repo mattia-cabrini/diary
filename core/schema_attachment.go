@@ -32,6 +32,11 @@ func CreateAttachmentByScan(rows *sql.Rows) (a Attachment, err error) {
 
 func (a *Attachment) Insert(db *sql.DB) (err error) {
 	a.Inserted = time.Now()
+
+	if args.Verbose {
+		logger.info.Printf("%v", a)
+	}
+
 	_, err = db.Exec("insert into attachments (name, inserted, content, entry_id) values (?, ?, ?, ?)", a.Name, a.Inserted.Unix(), a.Content, a.EntryId)
 	return
 }

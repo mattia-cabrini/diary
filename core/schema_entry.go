@@ -100,7 +100,7 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 			return
 		}
 
-		logger.info.Printf("Attachment #%d\n", e.Id)
+		logger.info.Printf("Attachment #%d\n", attachment.Id)
 
 		if attachmentCount == 0 {
 			fmt.Fprintln(fp, "<table><tr><th>#</th><th>Size</th><th>Name</th></tr>")

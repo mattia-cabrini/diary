@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"database/sql"
 	"os"
+	"strings"
 )
 
 func cmdAdd(db *sql.DB) (err error) {
@@ -59,6 +60,13 @@ func askForAttachments(db *sql.DB, id int64) {
 		}
 
 		var attachmentPath = k.Text()
+
+		if attachmentPath[0] == '\'' || attachmentPath[0] == '"' {
+			attachmentPath = strings.Trim(attachmentPath, " ")
+			if len(attachmentPath) > 1 {
+				attachmentPath = attachmentPath[1 : len(attachmentPath)-1] // rm first and last
+			}
+		}
 
 		stat, errStat := os.Stat(attachmentPath)
 		if errStat != nil {
