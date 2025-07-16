@@ -87,7 +87,7 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 	noteHtml := strings.Replace(e.Note, "\n", "<br>", -1)
 	fmt.Fprintf(fp, "%s", noteHtml)
 
-	rows, err := db.Query(QUERY_ATTACHMENT_ALL+" where entry_id = ? order by inserted", e.Id)
+	rows, err := db.Query(QUERY_ATTACHMENT_NC+" where entry_id = ? order by inserted", e.Id)
 	if err != nil {
 		return
 	}
@@ -95,7 +95,12 @@ func (e *Entry) FPrintDumpDay(fp *os.File, db *sql.DB) (err error) {
 
 	for attachmentCount = 0; rows.Next(); attachmentCount++ {
 		var attachment Attachment
-		attachment, err = CreateAttachmentByScan(rows)
+		attachment, err = CreateAttachmentByScanNC(db, rows)
+		if err != nil {
+			return
+		}
+
+		err = attachment.RetrieveContent(db)
 		if err != nil {
 			return
 		}
