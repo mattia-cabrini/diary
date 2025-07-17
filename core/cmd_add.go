@@ -70,8 +70,15 @@ func askForAttachments(db *sql.DB, id int64) {
 
 		stat, errStat := os.Stat(attachmentPath)
 		if errStat != nil {
-			logger.warn.Printf("file does not exist: %s\n", attachmentPath)
-			continue
+			attachmentPath = strings.Trim(attachmentPath, " \t\n")
+			stat, errStat = os.Stat(attachmentPath)
+
+			if errStat != nil {
+				logger.warn.Printf("file does not exist: %s\n", attachmentPath)
+				continue
+			} else {
+				logger.warn.Printf("file found after trim\n")
+			}
 		}
 
 		fp, errF = os.OpenFile(attachmentPath, os.O_RDONLY, 0444)
